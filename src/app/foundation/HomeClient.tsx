@@ -334,25 +334,15 @@ export default function HomeClient({ causes, gallery }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/55" />
 
         <div className="relative z-10 flex h-full max-w-7xl flex-col justify-end items-start mx-auto px-4 pb-14 sm:pb-16 lg:pb-20 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[#FFC107] backdrop-blur-md shadow-sm"
-          >
-            <Sparkles size={14} className="animate-pulse" />
-            Make a difference. Change a life.
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-5xl lg:text-6xl"
+            className="text-2xl font-bold leading-[1.1] text-white sm:text-3xl lg:text-4xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             It started with one simple thought —{" "}
-            <span className="bg-gradient-to-r from-[#FFC107] via-amber-300 to-yellow-200 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#FFC107] via-amber-300 to-yellow-200 bg-clip-text text-transparent sm:block">
               We Can Do More.
             </span>
           </motion.h1>
@@ -361,41 +351,41 @@ export default function HomeClient({ causes, gallery }: Props) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="mt-4 max-w-2xl text-xs leading-relaxed text-white/90 sm:text-sm sm:leading-relaxed"
+            className="mt-4 text-xs leading-relaxed text-white/90 sm:text-sm sm:leading-relaxed"
           >
-            At RAKVIH Foundation, we believe that every act of kindness has the power to create meaningful change.
-            From providing nutritious meals and supporting children&apos;s education to caring for animals, helping
-            vulnerable communities and creating opportunities for a better future — we turn compassion into action.
+            RAKVIH Foundation provides meals, supports education, and cares for animals and communities.
           </motion.p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-            className="mt-2 text-xs font-semibold text-[#FFC107]"
-          >
-            Every contribution. Every volunteer. Every helping hand. Together, we can do more.
-          </motion.p>
+          <div className="mt-2 flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.25 }}
+              className="text-xs font-semibold text-[#FFC107]"
+            >
+              Every contribution. Every volunteer. Every helping hand. Together, we can do more.
+            </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="mt-6 flex flex-wrap items-center gap-3.5"
-          >
-            <Link
-              href="/foundation/donate"
-              className="inline-flex items-center gap-2 rounded-full bg-[#798321] px-6 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-xl transition hover:bg-[#647019] sm:text-sm"
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="flex shrink-0 flex-wrap items-center justify-end gap-3.5 self-end lg:self-auto"
             >
-              Donate Now <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="/foundation/volunteer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm transition hover:bg-white/20 sm:text-sm"
-            >
-              Join Our Mission
-            </Link>
-          </motion.div>
+              <Link
+                href="/foundation/donate"
+                className="inline-flex items-center gap-2 rounded-full bg-[#798321] px-6 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-xl transition hover:bg-[#647019] sm:text-sm"
+              >
+                Donate Now <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/foundation/volunteer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm transition hover:bg-white/20 sm:text-sm"
+              >
+                Join Our Mission
+              </Link>
+            </motion.div>
+          </div>
 
           <motion.div
             initial={{ opacity: 0 }}

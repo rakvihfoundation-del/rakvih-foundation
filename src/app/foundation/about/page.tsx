@@ -183,7 +183,7 @@ export default function AboutPage() {
       />
 
       {/* ============ 01. HERO SECTION ============ */}
-      <section className="relative overflow-hidden pt-12 pb-14 sm:pt-16 sm:pb-20 bg-gradient-to-b from-[#24310F] via-[#2F3E14] to-[#F8FAF0] text-white dark:from-black dark:via-zinc-950 dark:to-black">
+      <section className="relative overflow-hidden pt-12 pb-4 sm:pt-16 sm:pb-6 bg-gradient-to-b from-[#24310F] via-[#2F3E14] to-[#F8FAF0] text-white dark:from-black dark:via-zinc-950 dark:to-black">
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
@@ -246,7 +246,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 02. MAKE A DIFFERENCE & OUR PROMISE ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-stretch">
           
           {/* Left Narrative: Make a Difference */}
@@ -352,7 +352,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 03. OUR MISSION & OUR VISION ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           
           {/* Mission Card */}
@@ -421,7 +421,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 04. WHAT SETS RAKVIH FOUNDATION APART ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#798321]/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#798321] dark:bg-[#FFC107]/10 dark:text-[#FFC107] mb-2">
             <Sparkles className="h-3.5 w-3.5" /> Core Principles
@@ -490,7 +490,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 05. OUR FOCUS AREAS ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 bg-[#F3F6E8] dark:bg-zinc-950/70 rounded-3xl my-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8 bg-[#F3F6E8] dark:bg-zinc-950/70 rounded-3xl">
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#798321]/15 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#798321] dark:bg-[#FFC107]/15 dark:text-[#FFC107] mb-2">
             <Compass className="h-3.5 w-3.5" /> Social Welfare Verticals
@@ -572,7 +572,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 06. WHAT WE DO ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#798321]/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#798321] dark:bg-[#FFC107]/10 dark:text-[#FFC107] mb-2">
             <CheckCircle2 className="h-3.5 w-3.5" /> Action On The Ground
@@ -647,7 +647,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 07. OUR APPROACH (LISTEN. ACT. IMPACT.) ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 border-t border-slate-200 dark:border-zinc-800">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8 border-t border-slate-200 dark:border-zinc-800">
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#798321]/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#798321] dark:bg-[#FFC107]/10 dark:text-[#FFC107] mb-2">
             <Compass className="h-3.5 w-3.5" /> Systematic Execution
@@ -725,7 +725,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 08. OUR COMMITMENT TO TRANSPARENCY ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -788,7 +788,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 09. LEADERSHIP & CREDENTIALS (OUR DIRECTOR & TRUST) ============ */}
-      <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8 border-t border-slate-200 dark:border-zinc-800 pt-12">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8 border-t border-slate-200 dark:border-zinc-800">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-stretch">
           
           {/* Left Side: Founder & Director Profile */}
@@ -815,7 +815,7 @@ export default function AboutPage() {
               <div className="flex flex-col items-center text-center my-auto py-2">
                 <div className="relative h-28 w-28 sm:h-32 sm:w-32 shrink-0 rounded-full bg-white ring-4 ring-[#FFC107]/40 shadow-xl mb-4">
                   <img 
-                    src="/director1.png" 
+                    src="/vijay-director-square.jpeg"
                     alt="Vijay Kumar - Founder & Director" 
                     className="h-full w-full rounded-full object-cover"
                   />
@@ -954,18 +954,18 @@ export default function AboutPage() {
                         <ShieldCheck className="h-5 w-5" />
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 size={10} /> Encrypted
+                        <CheckCircle2 size={10} /> Bank &amp; UPI
                       </span>
                     </div>
                     <h3 className="mt-3 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                       Secure Donation
                     </h3>
                     <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      Encrypted &amp; safe
+                      Direct transfer
                     </p>
                   </div>
                   <p className="mt-2.5 text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed pt-2 border-t border-slate-100 dark:border-zinc-800/80">
-                    256-bit bank-grade SSL encryption powered by Razorpay payment gateway.
+                    Donate using the bank transfer or UPI details on our donation pages.
                   </p>
                 </div>
               </div>
@@ -1051,7 +1051,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 10. OUR SERVICES DIRECTORY ============ */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 border-t border-slate-200 dark:border-zinc-800">
+      <section className="mx-auto max-w-6xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8 border-t border-slate-200 dark:border-zinc-800">
         <div className="text-center max-w-2xl mx-auto">
           <p className="text-[11px] font-bold uppercase tracking-wider text-[#798321] dark:text-[#FFC107]">
             Active Catalog
@@ -1124,7 +1124,7 @@ export default function AboutPage() {
       </section>
 
       {/* ============ 11. SUGGESTED FINAL CALL TO ACTION ============ */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28 lg:px-8 space-y-10">
+      <section className="mx-auto max-w-6xl px-4 pb-6 sm:px-6 sm:pb-8 lg:px-8 space-y-4 sm:space-y-6">
         
         {/* Action Banner: Ready to Make a Difference? */}
         <motion.div

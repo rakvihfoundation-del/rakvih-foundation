@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Fraunces } from "next/font/google";
-import { Heart, Sparkles, CheckCircle, ArrowLeft, Users, Calendar, Tag } from "lucide-react";
+import { Heart, Users, Calendar, Tag } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-import Link from "next/link";
+import DonationPaymentDetails, { donationUpiId } from "@/components/foundation/DonationPaymentDetails";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -20,8 +20,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 );
 
-function GeneralDonateContent() {
-  const [donations, setDonations] = useState<any[]>([]);
+type RecentDonation = {
+  id: string | number;
+  donor_name: string;
+  dedication_type: string | null;
+  donation_date: string | null;
+  message: string | null;
+  amount: number | string;
+};
+
+export default function GeneralDonatePage() {
+  const [donations, setDonations] = useState<RecentDonation[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [amount, setAmount] = useState<string>("500");
@@ -36,24 +45,19 @@ function GeneralDonateContent() {
   const [donorMessage, setDonorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [reference, setReference] = useState("");
+  const [proof, setProof] = useState<File | null>(null);
+  const [proofError, setProofError] = useState("");
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const frame = requestAnimationFrame(() => {
       const vName = localStorage.getItem("rakvih_volunteer_name");
       const vEmail = localStorage.getItem("rakvih_volunteer_email");
-      if (vName && !donorName) setDonorName(vName);
-      if (vEmail && !donorEmail) setDonorEmail(vEmail);
-    }
-  }, []);
-
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
+      if (vName) setDonorName((previous) => previous || vName);
+      if (vEmail) setDonorEmail((previous) => previous || vEmail);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -63,7 +67,7 @@ function GeneralDonateContent() {
         // Fetch donations where cause_id is null or 0 (general support)
         const { data: donationData } = await supabase
           .from("donations")
-          .select("*")
+          .select("id, donor_name, dedication_type, donation_date, message, amount")
           .or("cause_id.is.null,cause_id.eq.0")
           .order("created_at", { ascending: false });
 
@@ -80,117 +84,38 @@ function GeneralDonateContent() {
     fetchGeneralDonations();
   }, []);
 
-  const handlePaymentCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!donorName.trim()) {
-      alert("Please enter your full name.");
+  async function submitProof(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting || !proof) return;
+
+    setProofError("");
+    if (proof.size > 4 * 1024 * 1024) {
+      setProofError("Use a screenshot smaller than 4 MB.");
       return;
     }
 
-    if (!donorEmail.trim() || !/^\S+@\S+\.\S+$/.test(donorEmail.trim())) {
-      alert("Please enter a valid email address to receive your donation receipt.");
-      return;
-    }
-
-    if (!donorPhone.trim() || donorPhone.trim().length < 7) {
-      alert("Please enter a valid contact phone number.");
-      return;
-    }
-
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      alert("Please enter a valid donation amount.");
-      return;
-    }
-
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      const donationAmount = parseFloat(amount);
+      const details = new FormData();
+      Object.entries({
+        fullName: donorName, email: donorEmail, phone: donorPhone, amount,
+        category: dedicationType, date: donationDate, reference, message: donorMessage,
+      }).forEach(([key, value]) => details.set(key, value));
+      details.set("proof", proof);
 
-      const orderRes = await fetch("/api/razorpay/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: donationAmount }),
-      });
+      const response = await fetch("/api/donation/general-proof", { method: "POST", body: details });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error || "Could not submit your proof. Please try again.");
 
-      const orderData = await orderRes.json();
-      if (!orderRes.ok) throw new Error(orderData.error || "Failed to create payment order");
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "RAKVIH Foundation",
-        description: "General Foundation Contribution",
-        order_id: orderData.id,
-        handler: async function (response: any) {
-          try {
-            const { error: insertError } = await supabase.from("donations").insert([
-              {
-                cause_id: null,
-                donor_name: donorName.trim(),
-                email: donorEmail.trim(),
-                phone: donorPhone.trim(),
-                donor_image: "",
-                amount: donationAmount,
-                message: donorMessage || "General support for foundation initiatives",
-                donation_date: donationDate,
-                dedication_type: dedicationType,
-                is_donated: true,
-              },
-            ]);
-
-            if (insertError) {
-              console.error("Database save error details:", JSON.stringify(insertError, null, 2));
-              alert(`Payment successful, but database save failed: ${insertError.message || JSON.stringify(insertError)}`);
-              return;
-            }
-
-            setSuccess(true);
-            setDonorName("");
-            setDonorEmail("");
-            setDonorPhone("");
-            setDonorMessage("");
-            setDedicationType("General Foundation Support");
-            setAmount("500");
-
-            const { data: refreshedDonations } = await supabase
-              .from("donations")
-              .select("*")
-              .or("cause_id.is.null,cause_id.eq.0")
-              .order("created_at", { ascending: false });
-
-            if (refreshedDonations) setDonations(refreshedDonations);
-          } catch (dbErr: any) {
-            console.error("Database save error exception:", dbErr);
-            alert("Payment successful, but failed to log record in database.");
-          } finally {
-            setSubmitting(false);
-          }
-        },
-        prefill: {
-          name: donorName.trim(),
-          email: donorEmail.trim(),
-          contact: donorPhone.trim(),
-        },
-        theme: {
-          color: "#798321",
-        },
-        modal: {
-          ondismiss: function () {
-            setSubmitting(false);
-          },
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-
-    } catch (err) {
-      console.error("Payment initialization error:", err);
-      alert("Could not start payment gateway. Please check your keys.");
+      setSuccess(true);
+      setReference("");
+      setProof(null);
+    } catch (error) {
+      setProofError(error instanceof Error ? error.message : "Could not submit your proof. Please try again.");
+    } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <div className={`min-h-screen overflow-x-clip bg-slate-50 dark:bg-black pb-12 sm:pb-16 transition-colors duration-500 ${display.variable}`} style={{ fontFamily: "var(--font-display)" }}>
@@ -199,13 +124,6 @@ function GeneralDonateContent() {
       <section className="relative overflow-hidden pt-10 pb-6 sm:pt-14 sm:pb-8 bg-gradient-to-b from-[#24310F] via-[#2F3E14] to-[#F8FAF0] text-white dark:from-black dark:via-black dark:to-black">
         <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
           
-          <div className="flex flex-col items-center gap-2 mb-3">
-            
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-4 py-1.5 text-xs font-semibold tracking-wide text-[#FFC107] backdrop-blur-md uppercase shadow-lg">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Secure Razorpay Checkout
-            </div>
-          </div>
-
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl mb-2">
             Contribute to <span className="text-[#FFC107]">Our Foundation</span>
           </h1>
@@ -279,7 +197,7 @@ function GeneralDonateContent() {
                             <Calendar size={10} /> {item.donation_date || 'Recent'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-neutral-400 italic">"{item.message || 'Supporting the foundation'}"</p>
+                        <p className="text-xs text-slate-500 dark:text-neutral-400 italic">&ldquo;{item.message || 'Supporting the foundation'}&rdquo;</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <span className="text-sm font-extrabold text-[#798321] dark:text-[#FFC107]">₹{Number(item.amount).toLocaleString()}</span>
@@ -293,25 +211,14 @@ function GeneralDonateContent() {
 
           <div className="lg:col-span-5">
             <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-neutral-800 dark:bg-[#0a0a0a]">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Support General Fund</h3>
-              <p className="text-xs text-slate-500 dark:text-neutral-400 mb-6">Choose an amount or enter your custom value to empower our mission.</p>
-
-              {success ? (
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-10 space-y-4">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                    <CheckCircle size={32} />
-                  </div>
-                  <h4 className="text-lg font-bold text-slate-900 dark:text-white">Payment Successful!</h4>
-                  <p className="text-xs text-slate-500 dark:text-neutral-400">Thank you for your generous contribution to the RAKVIH Foundation.</p>
-                  <button
-                    onClick={() => setSuccess(false)}
-                    className="mt-4 rounded-xl bg-[#798321] px-6 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-[#647019] dark:bg-[#FFC107] dark:text-black dark:hover:bg-yellow-400 dark:hover:text-black transition-colors"
-                  >
-                    Make Another Contribution
-                  </button>
-                </motion.div>
-              ) : (
-                <form onSubmit={handlePaymentCheckout} className="space-y-5">
+              <h2 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">Support General Fund</h2>
+              <p className="mb-6 text-xs text-slate-500 dark:text-neutral-400">Choose an amount or enter your custom value to empower our mission.</p>
+                <form onSubmit={(event) => {
+                    event.preventDefault();
+                    setSuccess(false);
+                    setProofError("");
+                    dialogRef.current?.showModal();
+                  }} className="space-y-5">
                   
                   {/* Quick Preset Buttons */}
                   <div className="space-y-2">
@@ -336,23 +243,27 @@ function GeneralDonateContent() {
 
                   {/* Custom Editable Amount Input */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Custom Amount (₹)</label>
+                    <label htmlFor="donation-amount" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Custom Amount (₹)</label>
                     <input
+                      id="donation-amount"
                       type="number"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       required
                       min="1"
+                      max="10000000"
+                      step="0.01"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-xs font-bold text-slate-800 focus:border-[#798321] focus:outline-none dark:border-neutral-800 dark:bg-[#171717] dark:text-white"
                     />
                   </div>
 
                   {/* Dedication Type Dropdown */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5 flex items-center gap-1.5">
+                    <label htmlFor="donation-category" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5 flex items-center gap-1.5">
                       <Tag size={14} className="text-[#798321] dark:text-[#FFC107]" /> Contribution Category / Occasion
                     </label>
                     <select
+                      id="donation-category"
                       value={dedicationType}
                       onChange={(e) => setDedicationType(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-xs font-bold text-slate-800 focus:border-[#798321] focus:outline-none dark:border-neutral-800 dark:bg-[#171717] dark:text-white"
@@ -367,10 +278,11 @@ function GeneralDonateContent() {
 
                   {/* Donation Date Picker */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5 flex items-center gap-1.5">
+                    <label htmlFor="donation-date" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5 flex items-center gap-1.5">
                       <Calendar size={14} className="text-[#798321] dark:text-[#FFC107]" /> Contribution Date
                     </label>
                     <input
+                      id="donation-date"
                       type="date"
                       value={donationDate}
                       onChange={(e) => setDonationDate(e.target.value)}
@@ -380,9 +292,11 @@ function GeneralDonateContent() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Your Full Name *</label>
+                    <label htmlFor="donation-name" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Your Full Name *</label>
                     <input
+                      id="donation-name"
                       type="text"
+                      maxLength={120}
                       placeholder="e.g. Priya Sharma"
                       value={donorName}
                       onChange={(e) => setDonorName(e.target.value)}
@@ -393,9 +307,11 @@ function GeneralDonateContent() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Email Address *</label>
+                      <label htmlFor="donation-email" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Email Address *</label>
                       <input
+                        id="donation-email"
                         type="email"
+                        maxLength={254}
                         placeholder="e.g. priya@example.com"
                         value={donorEmail}
                         onChange={(e) => setDonorEmail(e.target.value)}
@@ -404,9 +320,12 @@ function GeneralDonateContent() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Phone Number *</label>
+                      <label htmlFor="donation-phone" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Phone Number *</label>
                       <input
+                        id="donation-phone"
                         type="tel"
+                        minLength={7}
+                        maxLength={24}
                         placeholder="e.g. +91 98765 43210"
                         value={donorPhone}
                         onChange={(e) => setDonorPhone(e.target.value)}
@@ -417,44 +336,72 @@ function GeneralDonateContent() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Encouraging Message (Optional)</label>
+                    <label htmlFor="donation-message" className="block text-xs font-bold text-slate-700 dark:text-neutral-300 mb-1.5">Encouraging Message (Optional)</label>
                     <textarea
+                      id="donation-message"
                       placeholder="Leave a warm word or note for our team..."
                       value={donorMessage}
                       onChange={(e) => setDonorMessage(e.target.value)}
                       rows={3}
+                      maxLength={1000}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-xs font-medium text-slate-800 focus:border-[#798321] focus:outline-none dark:border-neutral-800 dark:bg-[#171717] dark:text-white resize-none"
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#798321] to-[#FFC107] px-4 py-3.5 text-xs font-bold text-white shadow-lg transition-all hover:opacity-95 active:scale-95 disabled:opacity-50 dark:text-black"
-                  >
-                    <Heart size={16} fill="currentColor" />
-                    <span>{submitting ? "Opening Razorpay..." : `Pay ₹${Number(amount || 0).toLocaleString()} with Razorpay`}</span>
+                  <button type="submit" className="w-full rounded-2xl bg-[#FFC107] px-4 py-3.5 text-sm font-bold text-black hover:bg-yellow-400">
+                    Pay ₹{Number(amount || 0).toLocaleString("en-IN")}
                   </button>
                 </form>
-              )}
             </div>
           </div>
 
         </div>
       </main>
 
-    </div>
-  );
-}
+      <dialog
+        ref={dialogRef}
+        aria-labelledby="donation-payment-title"
+        onCancel={(event) => { if (submitting) event.preventDefault(); }}
+        className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl backdrop:bg-black/60 sm:p-6 dark:border-neutral-800 dark:bg-[#141414] dark:text-white"
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 id="donation-payment-title" className="text-lg font-bold">
+            {success ? "Payment proof submitted" : `Pay ₹${Number(amount || 0).toLocaleString("en-IN")}`}
+          </h2>
+          <button type="button" disabled={submitting} onClick={() => dialogRef.current?.close()} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-neutral-700">
+            Close
+          </button>
+        </div>
+        {success ? (
+          <p role="status" className="text-sm">Thank you. Your payment proof is pending verification by the Foundation.</p>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-slate-600 dark:text-neutral-300">Pay using your bank or UPI app, then submit your transaction reference and screenshot.</p>
+            <DonationPaymentDetails />
+            <a
+              href={`upi://pay?${new URLSearchParams({ pa: donationUpiId, pn: "RAKVIH FOUNDATION", am: Number(amount).toFixed(2), cu: "INR" })}`}
+              className="mt-3 inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-neutral-700"
+            >
+              Open UPI app
+            </a>
+            <form onSubmit={submitProof} className="mt-4 space-y-4">
+              <label className="block text-sm font-semibold">
+                Transaction reference / UTR
+                <input required value={reference} onChange={(event) => setReference(event.target.value)} minLength={4} maxLength={80} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-neutral-700" />
+              </label>
+              <label className="block text-sm font-semibold">
+                Payment screenshot (PNG or JPEG, up to 4 MB)
+                <input required type="file" accept="image/png,image/jpeg" onChange={(event) => setProof(event.target.files?.[0] ?? null)} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-neutral-700" />
+              </label>
+              {proofError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{proofError}</p>}
+              <button type="submit" disabled={submitting} className="w-full rounded-xl bg-[#FFC107] px-4 py-3 text-sm font-bold text-black disabled:opacity-60">
+                {submitting ? "Submitting…" : "Submit payment proof"}
+              </button>
+            </form>
+          </>
+        )}
+      </dialog>
 
-export default function GeneralDonatePage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-black">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#798321] border-t-transparent" />
-      </div>
-    }>
-      <GeneralDonateContent />
-    </Suspense>
+    </div>
   );
 }

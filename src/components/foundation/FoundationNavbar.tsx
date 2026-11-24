@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -51,21 +51,24 @@ const navLinks = [
   { href: "/foundation/contact", label: "Contact" },
 ];
 
+const subscribeToHydration = () => () => {};
+
 export default function FoundationNavbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [causesOpen, setCausesOpen] = useState(false);
   const [categories, setCategories] = useState(fallbackCategories);
+  const desktopNavLink = "flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-sm font-semibold transition-colors 2xl:px-3.5";
+  const activeNavLink = "bg-[#798321]/12 text-[#465019] dark:bg-[#FFC107]/12 dark:text-[#FFC107]";
+  const idleNavLink = "text-slate-700 hover:bg-white hover:text-[#465019] dark:text-neutral-300 dark:hover:bg-white/8 dark:hover:text-white";
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [volunteer, setVolunteer] = useState<{ id: string; name: string } | null>(null);
   const { theme, setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
-    setMounted(true);
-
     async function fetchNavbarCauses() {
       try {
         const [categoriesRes, itemsRes] = await Promise.all([
@@ -156,9 +159,9 @@ export default function FoundationNavbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[999] w-full border-b border-slate-200 bg-white/90 backdrop-blur-md dark:border-neutral-800 dark:bg-black/90 transition-colors duration-500 ${display.variable}`}
+      className={`fixed top-0 left-0 right-0 z-[999] w-full border-b border-[#798321]/20 bg-[#FCFCF6]/95 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#10110D]/95 transition-colors duration-500 ${display.variable}`}
     >
-      <div className="mx-auto flex h-[80px] sm:h-[94px] max-w-[1440px] items-center justify-between px-2.5 sm:px-4 lg:px-6 gap-1.5 sm:gap-2 xl:gap-4">
+      <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between gap-2 px-3 sm:h-[94px] sm:gap-4 sm:px-6">
         
         {/* Left: Back Arrow & Logo */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
@@ -171,23 +174,22 @@ export default function FoundationNavbar() {
             <ArrowLeft size={16} />
           </button>
 
-          <Link href="/foundation" className="group flex items-center bg-transparent">
-            <div className="relative h-[50px] w-[125px] min-[360px]:w-[140px] min-[400px]:w-[165px] sm:h-[76px] sm:w-[250px] md:h-[80px] md:w-[265px] lg:w-[250px] xl:h-[84px] xl:w-[290px] bg-transparent shrink-0">
+          <Link href="/foundation" className="flex items-center">
+            <div className="relative h-12 w-28 min-[360px]:w-36 sm:h-16 sm:w-48 2xl:w-56">
               <Image
                 src="/rakvih-foundation.png"
                 alt="RAKVIH Foundation Logo"
                 fill
                 priority
                 unoptimized
-                sizes="(max-width: 640px) 165px, 290px"
-                className="object-contain object-left scale-105 sm:scale-120 origin-left transition-transform duration-300 group-hover:scale-125 !bg-transparent"
+                sizes="(max-width: 639px) 144px, (max-width: 1535px) 192px, 224px"
+                className="object-contain object-left"
               />
             </div>
           </Link>
         </div>
 
-        {/* Middle: Desktop Navigation Links (Flex-1, never overlaps left or right elements) */}
-        <nav className="hidden lg:flex items-center justify-center flex-1 min-w-0 mx-1 xl:mx-4 gap-3 lg:gap-3.5 xl:gap-5 2xl:gap-7">
+        <nav aria-label="Foundation navigation" className="hidden shrink-0 items-center gap-0.5 rounded-full border border-[#798321]/15 bg-[#798321]/5 p-1 dark:border-white/10 dark:bg-white/5 xl:flex">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
 
@@ -196,12 +198,12 @@ export default function FoundationNavbar() {
                 <div key={link.href} className="relative shrink-0" ref={dropdownRef}>
                   <button
                     onClick={() => setCausesOpen(!causesOpen)}
-                    style={{ fontFamily: "var(--font-display)" }}
-                    className={`flex items-center gap-1 text-[13px] xl:text-[14px] 2xl:text-[15px] font-medium tracking-tight whitespace-nowrap transition-colors ${
-                      isActive || pathname.startsWith("/foundation/causes")
-                        ? "text-[#798321] dark:text-[#FFC107]"
-                        : "text-slate-600 hover:text-[#24310F] dark:text-neutral-400 dark:hover:text-white"
-                    }`}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setCausesOpen(false);
+                    }}
+                    aria-expanded={causesOpen}
+                    aria-controls="foundation-causes-menu"
+                    className={`${desktopNavLink} ${pathname.startsWith(link.href) ? activeNavLink : idleNavLink}`}
                   >
                     <span>{link.label}</span>
                     <ChevronDown
@@ -214,6 +216,7 @@ export default function FoundationNavbar() {
                   <AnimatePresence>
                     {causesOpen && (
                       <motion.div
+                        id="foundation-causes-menu"
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -251,7 +254,7 @@ export default function FoundationNavbar() {
 
                                 {cat.cause_items && cat.cause_items.length > 0 ? (
                                   <div className="space-y-1 pl-1 border-l border-slate-200 dark:border-neutral-800 ml-1">
-                                    {cat.cause_items.map((item: any) => (
+                                    {cat.cause_items.map((item) => (
                                       <Link
                                         key={item.id}
                                         href={`/foundation/donate?cause=${item.id}`}
@@ -282,20 +285,10 @@ export default function FoundationNavbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                style={{ fontFamily: "var(--font-display)" }}
-                className={`relative text-[13px] xl:text-[14px] 2xl:text-[15px] font-medium tracking-tight transition-colors whitespace-nowrap shrink-0 ${
-                  isActive
-                    ? "text-[#798321] dark:text-[#FFC107]"
-                    : "text-slate-600 hover:text-[#24310F] dark:text-neutral-400 dark:hover:text-white"
-                }`}
+                aria-current={isActive ? "page" : undefined}
+                className={`${desktopNavLink} ${isActive ? activeNavLink : idleNavLink}`}
               >
                 {link.label}
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-underline"
-                    className="absolute -bottom-1.5 left-0 h-[2px] w-full rounded-full bg-[#798321] dark:bg-[#FFC107]"
-                  />
-                )}
               </Link>
             );
           })}
@@ -303,7 +296,9 @@ export default function FoundationNavbar() {
 
         {/* Right: Controls (shrink-0, perfectly positioned) */}
         <div className="flex items-center gap-1 sm:gap-2 xl:gap-2.5 shrink-0">
-          <LanguageTranslator variant="desktop" />
+          <div className="hidden sm:block">
+            <LanguageTranslator variant="desktop" />
+          </div>
 
           <button
             onClick={toggleTheme}
@@ -344,7 +339,7 @@ export default function FoundationNavbar() {
           <Link
             href="/foundation/genraldonate"
             style={{ fontFamily: "var(--font-display)" }}
-            className="group hidden items-center gap-1.5 rounded-full bg-gradient-to-r from-[#798321] to-[#FFC107] px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-transform hover:-translate-y-0.5 sm:flex sm:px-4 sm:py-2.5 sm:text-sm dark:text-black shrink-0 whitespace-nowrap"
+            className="group hidden items-center gap-1.5 rounded-full bg-[#FFC107] px-3.5 py-2 text-xs font-bold text-[#201A04] shadow-sm transition-colors hover:bg-[#FFD24A] sm:flex sm:px-4 sm:py-2.5 sm:text-sm dark:text-black shrink-0 whitespace-nowrap"
           >
             <Heart size={15} className="transition-transform group-hover:scale-110" fill="currentColor" />
             <span>Donate</span>
@@ -378,8 +373,10 @@ export default function FoundationNavbar() {
           {/* Mobile Hamburger Toggle (Always visible, shrink-0, priority!) */}
           <button
             onClick={() => setOpen(!open)}
-            aria-label="Toggle Menu"
-            className="flex h-8.5 w-8.5 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:bg-slate-100 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 lg:hidden shrink-0 shadow-sm"
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-expanded={open}
+            aria-controls="foundation-mobile-menu"
+            className="flex h-8.5 w-8.5 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:bg-slate-100 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 xl:hidden shrink-0 shadow-sm"
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -390,11 +387,12 @@ export default function FoundationNavbar() {
       <AnimatePresence>
         {open && (
           <motion.div
+            id="foundation-mobile-menu"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="overflow-hidden border-t border-slate-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-[#0a0a0a] lg:hidden"
+            className="overflow-hidden border-t border-slate-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-[#0a0a0a] xl:hidden"
           >
             <div className="flex flex-col space-y-2 px-6 py-6 max-h-[75vh] overflow-y-auto">
               {navLinks.map((link) => {
@@ -402,17 +400,21 @@ export default function FoundationNavbar() {
 
                 if (link.hasDropdown) {
                   return (
-                    <div key={link.href} className="space-y-1 py-1">
+                    <details key={link.href} className="group rounded-xl bg-[#798321]/5 dark:bg-white/5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-[#465019] dark:text-[#FFC107] [&::-webkit-details-marker]:hidden">
+                        {link.label}
+                        <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
+                      </summary>
                       <Link
                         href={link.href}
                         onClick={() => setOpen(false)}
                         style={{ fontFamily: "var(--font-display)" }}
-                        className="text-[15px] font-medium tracking-tight text-[#798321] dark:text-[#FFC107]"
+                        className="mx-4 block rounded-lg px-2 py-2 text-sm font-semibold text-[#465019] dark:text-[#FFC107]"
                       >
-                        {link.label} (Main)
+                        View All Causes
                       </Link>
 
-                      <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-800 ml-2 mt-2">
+                      <div className="pl-4 space-y-3 border-l-2 border-slate-200 dark:border-neutral-800 mx-4 mt-1 mb-4">
                         {categories.map((cat) => (
                           <div key={cat.id} className="space-y-1.5">
                             <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-200 px-2 py-1 bg-slate-50 dark:bg-neutral-900 rounded-lg">
@@ -422,7 +424,7 @@ export default function FoundationNavbar() {
 
                             {cat.cause_items && cat.cause_items.length > 0 ? (
                               <div className="pl-4 space-y-1 border-l border-slate-200 dark:border-neutral-800 ml-2">
-                                {cat.cause_items.map((item: any) => (
+                                {cat.cause_items.map((item) => (
                                   <Link
                                     key={item.id}
                                     href={`/foundation/donate?cause=${item.id}`}
@@ -441,7 +443,7 @@ export default function FoundationNavbar() {
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </details>
                   );
                 }
 
@@ -464,9 +466,9 @@ export default function FoundationNavbar() {
 
               <LanguageTranslator variant="mobile" />
 
-              <div className="pt-4 flex flex-col gap-2.5 sm:hidden">
+              <div className="flex flex-col gap-2.5 border-t border-slate-200 pt-4 dark:border-neutral-800">
                 {volunteer ? (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 space-y-2.5">
+                  <div className="p-3.5 sm:hidden rounded-2xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 space-y-2.5">
                     <div className="flex items-center gap-2.5">
                       <div className="h-8 w-8 rounded-full bg-[#798321] text-white dark:bg-[#FFC107] dark:text-black flex items-center justify-center font-bold text-xs">
                         {volunteer.name.charAt(0).toUpperCase()}
@@ -513,7 +515,7 @@ export default function FoundationNavbar() {
                   href="/foundation/genraldonate"
                   onClick={() => setOpen(false)}
                   style={{ fontFamily: "var(--font-display)" }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#798321] to-[#FFC107] px-5 py-3.5 text-sm font-semibold text-white shadow-md active:scale-95 dark:text-black"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FFC107] px-5 py-3.5 text-sm font-bold text-[#201A04] shadow-sm active:scale-95 sm:hidden dark:text-black"
                 >
                   <Heart size={18} fill="currentColor" />
                   Donate Now

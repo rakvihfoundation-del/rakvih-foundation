@@ -3,19 +3,16 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
+import DonationPaymentDetails from "@/components/foundation/DonationPaymentDetails";
 import Link from "next/link";
 import { Fraunces } from "next/font/google";
 import {
   Heart,
   Sparkles,
-  CheckCircle,
   ArrowLeft,
   Users,
   Plus,
   Minus,
-  Calendar,
-  Tag,
-  Upload,
   Image as ImageIcon,
   Video,
   Gift,
@@ -23,10 +20,6 @@ import {
   Search,
   Check,
   X,
-  PhoneOff,
-  Clock,
-  FileCheck,
-  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
@@ -75,31 +68,10 @@ function DonateContent() {
     const q = searchParams.get("qty");
     return q && !isNaN(Number(q)) && Number(q) > 0 ? Number(q) : 1;
   });
-  const [dedicationType, setDedicationType] = useState<string>("General Donation");
-  const [donationDate, setDonationDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
-  const [donorName, setDonorName] = useState("");
-  const [donorEmail, setDonorEmail] = useState("");
-  const [donorPhone, setDonorPhone] = useState("");
-  const [donorMessage, setDonorMessage] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const vName = localStorage.getItem("rakvih_volunteer_name");
-      const vEmail = localStorage.getItem("rakvih_volunteer_email");
-      if (vName && !donorName) setDonorName(vName);
-      if (vEmail && !donorEmail) setDonorEmail(vEmail);
-    }
-  }, []);
-
   // ── Optional Add-ons & Packaging ──
   const [wantsPhoto, setWantsPhoto] = useState<boolean>(
     searchParams.get("photo") === "true" || searchParams.get("upload") === "true"
   );
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-
   const [wantsVideo, setWantsVideo] = useState<boolean>(
     searchParams.get("video") === "true"
   );
@@ -107,9 +79,6 @@ function DonateContent() {
   const [wantsText, setWantsText] = useState<boolean>(
     searchParams.get("text") === "true"
   );
-  const [packingLabelName, setPackingLabelName] = useState("");
-  const [packingLabelDesc, setPackingLabelDesc] = useState("");
-
   const [selectedItems, setSelectedItems] = useState<string[]>(() => {
     const raw = searchParams.get("items");
     return raw ? raw.split(",").filter(Boolean) : [];
@@ -132,34 +101,7 @@ function DonateContent() {
   const [subItemAddons, setSubItemAddons] = useState<any[]>([]);
   const [selectedSubAddons, setSelectedSubAddons] = useState<string[]>([]);
 
-  // Submission & Post-Payment Pop-up States
-  const [submitting, setSubmitting] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [completedDonationData, setCompletedDonationData] = useState<any>(null);
-
-  // Short Floating Popup & Photo Validation States
-  const [popupMessage, setPopupMessage] = useState<string>("");
-  const [photoError, setPhotoError] = useState<boolean>(false);
-  const [showSamplePhotoModal, setShowSamplePhotoModal] = useState<boolean>(false);
-  const popupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const showPopup = (msg: string) => {
-    if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
-    setPopupMessage(msg);
-    popupTimeoutRef.current = setTimeout(() => {
-      setPopupMessage("");
-    }, 4500);
-  };
-
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  const [showSamplePhotoModal, setShowSamplePhotoModal] = useState(false);
 
   // Fetch Cause, Donations, and Admin Configuration
   useEffect(() => {
@@ -341,235 +283,6 @@ function DonateContent() {
     );
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-      setPhotoError(false);
-      setPopupMessage("");
-    }
-  };
-
-  const handlePaymentCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!donorName.trim()) {
-      showPopup("Please enter your full name.");
-      return;
-    }
-
-    if (!donorEmail.trim() || !/^\S+@\S+\.\S+$/.test(donorEmail.trim())) {
-      showPopup("Please enter a valid email address.");
-      return;
-    }
-
-    if (!donorPhone.trim() || donorPhone.trim().length < 7) {
-      showPopup("Please enter a valid contact phone number.");
-      return;
-    }
-
-    if (wantsPhoto && !photoFile) {
-      setIsPackagingMenuOpen(true);
-      setPhotoError(true);
-      showPopup("Please upload a photo for packing, or uncheck the option.");
-      return;
-    }
-
-    if (wantsText && !packingLabelName.trim()) {
-      setIsPackagingMenuOpen(true);
-      showPopup("Please enter a dedication label name, or uncheck the option.");
-      return;
-    }
-
-    if (finalCalculatedTotal <= 0) {
-      showPopup("Donation amount must be greater than zero.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      // 1. Upload Packing Photo if attached
-      let uploadedPhotoUrl = "";
-      if (wantsPhoto && photoFile) {
-        try {
-          const fileExt = photoFile.name.split(".").pop();
-          const cleanFileName = `photo-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `packing-proofs/${cleanFileName}`;
-
-          const { error: photoErr } = await supabase.storage
-            .from("causes")
-            .upload(filePath, photoFile, {
-              contentType: photoFile.type || "image/jpeg",
-              upsert: true,
-            });
-
-          if (photoErr) {
-            console.error("Storage upload failed:", photoErr.message);
-            alert(
-              `Packaging photo upload failed: ${photoErr.message}. Please verify storage permissions for the 'causes' bucket.`
-            );
-            setSubmitting(false);
-            return;
-          }
-
-          const { data: urlData } = supabase.storage.from("causes").getPublicUrl(filePath);
-          uploadedPhotoUrl = urlData.publicUrl;
-        } catch (uploadException: any) {
-          console.error("Exception during photo upload:", uploadException);
-          alert("Could not upload the selected packaging photo. Please try a different photo.");
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      // 2. Create Razorpay Order
-      const orderRes = await fetch("/api/razorpay/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: finalCalculatedTotal }),
-      });
-
-      const orderData = await orderRes.json();
-      if (!orderRes.ok) throw new Error(orderData.error || "Failed to create payment order");
-
-      // 3. Launch Gateway
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "RAKVIH Foundation",
-        description: `Sponsorship of ${personCount} member(s) - ${cause?.title || cause?.name || "Initiative"}`,
-        order_id: orderData.id,
-        handler: async function (response: any) {
-          try {
-            const selectedSubAddonNames = selectedSubAddons
-              .map((id) => {
-                const a = subItemAddons.find((item) => item.id === id);
-                return a ? `${a.title} (+₹${a.cost})` : "";
-              })
-              .filter(Boolean);
-
-            const selectedItemNames = selectedItems
-              .map((id) => addonPrices.extras.find((a) => a.id === id)?.title)
-              .filter(Boolean) as string[];
-
-            const packingSummary = [
-              donorMessage ? `"${donorMessage}"` : "",
-              `Members: ${personCount}`,
-              selectedSubAddonNames.length > 0 ? `Sub-Item Add-ons: ${selectedSubAddonNames.join(", ")}` : "",
-              uploadedPhotoUrl ? `Photo on Packing: ${uploadedPhotoUrl}` : "",
-              wantsVideo ? `Celebration Video Requested: Yes (Flat ₹${videoFlatCost})` : "",
-              wantsText ? `Label: [${packingLabelName}] - ${packingLabelDesc}` : "",
-              selectedItemNames.length > 0 ? `Extras: ${selectedItemNames.join(", ")}` : "",
-            ]
-              .filter(Boolean)
-              .join(" | ");
-
-            const { error: insertError } = await supabase.from("donations").insert([
-              {
-                cause_id: parseInt(causeId as string),
-                donor_name: donorName.trim(),
-                email: donorEmail.trim(),
-                phone: donorPhone.trim(),
-                donor_image: uploadedPhotoUrl || "",
-                amount: finalCalculatedTotal,
-                message: packingSummary,
-                donation_date: donationDate,
-                dedication_type: dedicationType,
-                is_donated: true,
-              },
-            ]);
-
-            if (insertError) {
-              console.error("Database insert error:", insertError);
-              alert("Payment succeeded, but record logging failed. Please notify support.");
-              return;
-            }
-
-            // Send Notification Email to Admin
-            fetch("/api/donations/notify-admin", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                donorName: donorName.trim(),
-                donorEmail: donorEmail.trim(),
-                donorPhone: donorPhone.trim(),
-                amount: finalCalculatedTotal,
-                causeTitle: cause?.title || cause?.name || "Initiative Sponsorship",
-                personCount,
-                donationDate,
-                dedicationType,
-                uploadedPhotoUrl,
-                wantsVideo,
-                packingLabelName,
-                packingLabelDesc,
-                selectedItemNames: [...selectedSubAddonNames, ...selectedItemNames],
-                donorMessage: donorMessage.trim(),
-              }),
-            }).catch((emailErr) => {
-              console.warn("Could not deliver admin email alert:", emailErr);
-            });
-
-            setCompletedDonationData({
-              donorName: donorName.trim(),
-              donorEmail: donorEmail.trim(),
-              donorPhone: donorPhone.trim(),
-              amount: finalCalculatedTotal,
-              personCount,
-              wantsVideo,
-              donationDate,
-              selectedSubAddons: selectedSubAddonNames,
-            });
-
-            setShowSuccessPopup(true);
-
-            setDonorName("");
-            setDonorEmail("");
-            setDonorPhone("");
-            setDonorMessage("");
-            setPackingLabelName("");
-            setPackingLabelDesc("");
-            setPhotoFile(null);
-            setPhotoPreview(null);
-            setWantsVideo(false);
-
-            const { data: refreshed } = await supabase
-              .from("donations")
-              .select("*")
-              .eq("cause_id", causeId)
-              .order("created_at", { ascending: false });
-
-            if (refreshed) setDonations(refreshed);
-          } catch (dbErr) {
-            console.error("Post-payment error:", dbErr);
-          } finally {
-            setSubmitting(false);
-          }
-        },
-        prefill: {
-          name: donorName.trim(),
-          email: donorEmail.trim(),
-          contact: donorPhone.trim(),
-        },
-        theme: {
-          color: "#798321",
-        },
-        modal: {
-          ondismiss: () => setSubmitting(false),
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (err: any) {
-      console.error("Payment initialization error:", err);
-      alert(err.message || "Could not launch payment gateway.");
-      setSubmitting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-black">
@@ -616,7 +329,7 @@ function DonateContent() {
             Sponsor: <span className="text-[#FFC107]">{cause?.title || cause?.name}</span>
           </h1>
           <p className="max-w-2xl mx-auto text-xs sm:text-sm text-slate-300 dark:text-neutral-400">
-            Select your member count, fill your dedication, add optional packaging details, and donate securely.
+            Choose how many people to support, estimate the cost, and view bank transfer and UPI details.
           </p>
         </div>
       </section>
@@ -700,7 +413,7 @@ function DonateContent() {
           {/* ── Right Column: 7 Cols Width, balanced & compact ── */}
           <div className="lg:col-span-7">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl dark:border-neutral-800 dark:bg-[#0a0a0a]">
-              <form onSubmit={handlePaymentCheckout} className="space-y-5">
+              <div className="space-y-5">
                 {/* ── 1. CORE ESSENTIALS: Member Counter & Baseline Cost ── */}
                 <div className="rounded-2xl bg-slate-50 dark:bg-[#141414] p-4 border border-slate-200 dark:border-neutral-800 space-y-3">
                   <div className="flex items-center justify-between">
@@ -817,99 +530,6 @@ function DonateContent() {
                   </div>
                 )}
 
-                {/* ── 3. CORE ESSENTIALS: Dedication & Date (Side-by-side) ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      Dedication Type
-                    </label>
-                    <select
-                      value={dedicationType}
-                      onChange={(e) => setDedicationType(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none"
-                    >
-                      <option value="General Donation">General Donation</option>
-                      <option value="Birthday Celebration">Birthday Celebration</option>
-                      <option value="Anniversary">Anniversary</option>
-                      <option value="In Memory of a Loved One">In Memory of a Loved One</option>
-                      <option value="Festival / Special Occasion">Festival / Special Occasion</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300 mb-1">
-                      Execution Date
-                    </label>
-                    <input
-                      type="date"
-                      value={donationDate}
-                      onChange={(e) => setDonationDate(e.target.value)}
-                      required
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Name, Email, Phone & Note */}
-                <div className="space-y-3.5">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300 mb-1">
-                      Your Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Rahul Sharma"
-                      value={donorName}
-                      onChange={(e) => setDonorName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-medium text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300 mb-1">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="e.g. rahul@example.com"
-                        value={donorEmail}
-                        onChange={(e) => setDonorEmail(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-medium text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300 mb-1">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="e.g. +91 98765 43210"
-                        value={donorPhone}
-                        onChange={(e) => setDonorPhone(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-medium text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300 mb-1">
-                      Encouraging Note / Blessing (Optional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Leave a heartfelt message..."
-                      value={donorMessage}
-                      onChange={(e) => setDonorMessage(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 px-3 text-xs font-medium text-slate-800 dark:border-neutral-700 dark:bg-[#141414] dark:text-white focus:outline-none resize-none"
-                    />
-                  </div>
-                </div>
-
                 {/* ── 3. OPTIONAL PACKAGING & EXTRAS (Single Dropdown Menu) ── */}
                 <div className="pt-2 border-t border-slate-200 dark:border-neutral-800">
                   <div className="rounded-2xl border border-slate-200 bg-white dark:border-neutral-800 dark:bg-[#121212] overflow-hidden transition-all shadow-sm">
@@ -933,7 +553,7 @@ function DonateContent() {
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-0.5">
                             {activeOptionsCount === 0
-                              ? "Click to choose custom photo label, celebration video, or add-ons"
+                              ? "Choose options to estimate your donation"
                               : `${activeOptionsCount} optional customizer(s) selected`}
                           </p>
                         </div>
@@ -964,25 +584,16 @@ function DonateContent() {
                           transition={{ duration: 0.25 }}
                           className="border-t border-slate-200 dark:border-neutral-800 p-4 space-y-3.5 bg-slate-50/60 dark:bg-black/40"
                         >
-                          {/* Option 1: Attach Photo on Packing */}
+                          {/* Option 1: Photo on Packing */}
                           <div
                             className={`rounded-2xl border transition-all ${
-                              photoError && !photoFile
-                                ? "border-rose-500 bg-rose-50/25 dark:border-rose-500/80 dark:bg-rose-950/20 ring-2 ring-rose-500/40"
-                                : wantsPhoto
+                              wantsPhoto
                                 ? "border-[#798321] bg-[#798321]/5 dark:border-[#FFC107] dark:bg-[#FFC107]/5"
                                 : "border-slate-200 bg-white dark:border-neutral-800 dark:bg-[#121212]"
                             }`}
                           >
                             <div
-                              onClick={() => {
-                                const next = !wantsPhoto;
-                                setWantsPhoto(next);
-                                if (!next) {
-                                  setPhotoError(false);
-                                  setPopupMessage("");
-                                }
-                              }}
+                              onClick={() => setWantsPhoto(!wantsPhoto)}
                               className="flex cursor-pointer items-start justify-between p-3.5 gap-3"
                             >
                               <div className="flex items-start gap-2.5">
@@ -998,10 +609,10 @@ function DonateContent() {
                                 <div>
                                   <span className="text-xs font-bold text-slate-800 dark:text-neutral-200 flex items-center gap-1.5">
                                     <ImageIcon size={14} className="text-[#798321] dark:text-[#FFC107]" />
-                                    Attach Photo on Packing
+                                    Photo on Packing
                                   </span>
                                   <p className="text-[11px] text-slate-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                                    We print your uploaded photo on a custom sticker affixed to every food or gift box distributed to beneficiaries (e.g. Birthday, Memorial, or Family tribute).
+                                    We print the photo you provide on a custom sticker affixed to every food or gift box distributed to beneficiaries (e.g. Birthday, Memorial, or Family tribute).
                                   </p>
                                 </div>
                               </div>
@@ -1033,63 +644,6 @@ function DonateContent() {
                               </div>
                             </div>
 
-                            {wantsPhoto && (
-                              <div className="border-t border-slate-200/50 px-3.5 pb-3.5 pt-2.5 dark:border-neutral-800 space-y-2.5">
-                                <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-900 dark:text-amber-200">
-                                  <Sparkles size={13} className="text-[#FFC107] shrink-0" />
-                                  <span>Upload any photo you want printed on the meal/package label (e.g., photo of birthday person, couple, or family member).</span>
-                                </div>
-                                
-                                <label className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-3 cursor-pointer transition ${
-                                  photoError && !photoFile
-                                    ? "border-rose-400 bg-rose-50/60 dark:border-rose-500/70 dark:bg-rose-950/20"
-                                    : "border-slate-300 bg-white hover:bg-slate-50 dark:border-neutral-700 dark:bg-black dark:hover:bg-neutral-900"
-                                }`}>
-                                  <Upload size={16} className={photoError && !photoFile ? "text-rose-500 mb-1" : "text-slate-400 mb-1"} />
-                                  <span className={`text-xs font-medium ${photoError && !photoFile ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-slate-600 dark:text-neutral-300"}`}>
-                                    {photoFile ? photoFile.name : "Choose an image file (JPG, PNG)"}
-                                  </span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handlePhotoSelect}
-                                    className="hidden"
-                                  />
-                                </label>
-
-                                {/* Added under image box itself */}
-                                {!photoFile ? (
-                                  <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] transition ${
-                                    photoError
-                                      ? "bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 font-bold"
-                                      : "bg-slate-100 dark:bg-neutral-900 text-slate-500 dark:text-neutral-400"
-                                  }`}>
-                                    <AlertCircle size={13} className={photoError ? "text-rose-500 shrink-0" : "text-slate-400 shrink-0"} />
-                                    <span>
-                                      {photoError
-                                        ? "Photo required: please upload a photo above or uncheck this option."
-                                        : "Please upload a photo, or uncheck the option to proceed without photo."}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/50 p-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                                    <img
-                                      src={photoPreview || ""}
-                                      alt="Preview"
-                                      className="h-11 w-11 rounded-lg object-cover border border-emerald-300 dark:border-emerald-700"
-                                    />
-                                    <div>
-                                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold block">
-                                        ✓ Photo ready for sticker print
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
-                                        Will be affixed to all {personCount} packages
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
 
                           {/* Option 2: Request Celebration Video */}
@@ -1166,24 +720,6 @@ function DonateContent() {
                               </span>
                             </div>
 
-                            {wantsText && (
-                              <div className="border-t border-slate-200/50 px-3.5 pb-3.5 pt-2 dark:border-neutral-800 space-y-2">
-                                <input
-                                  type="text"
-                                  placeholder="Name to print (e.g. S. Ramesh & Family)"
-                                  value={packingLabelName}
-                                  onChange={(e) => setPackingLabelName(e.target.value)}
-                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 dark:border-neutral-700 dark:bg-black dark:text-white focus:outline-none"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Short wish (e.g. With love from Grandchildren)"
-                                  value={packingLabelDesc}
-                                  onChange={(e) => setPackingLabelDesc(e.target.value)}
-                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 dark:border-neutral-700 dark:bg-black dark:text-white focus:outline-none"
-                                />
-                              </div>
-                            )}
                           </div>
 
                           {/* Option 4: Extra Celebration Gifts */}
@@ -1316,7 +852,7 @@ function DonateContent() {
                     <div className="flex items-baseline justify-between pt-1">
                       <div>
                         <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                          Total Payable
+                          Estimated Donation
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {wantsVideo
@@ -1331,173 +867,16 @@ function DonateContent() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#798321] to-[#FFC107] px-4 py-3.5 text-xs font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 dark:text-black"
-                >
-                  <Heart size={16} fill="currentColor" />
-                  <span>
-                    {submitting
-                      ? "Opening Razorpay..."
-                      : `Pay ₹${finalCalculatedTotal.toLocaleString()} with Razorpay`}
-                  </span>
-                </button>
-              </form>
+                <DonationPaymentDetails />
+                <p className="text-xs leading-relaxed text-slate-600 dark:text-neutral-400">
+                  <Link href="/foundation/contact" className="font-semibold underline">Contact us</Link>{" "}
+                  before transferring funds to arrange a cause-specific donation or request add-ons.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </main>
-
-      {/* ── POST-PAYMENT SUCCESS & MANDATORY CONDITIONS POPUP WITH HEARTFELT THANK YOU ── */}
-      <AnimatePresence>
-        {showSuccessPopup && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 sm:p-6">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl dark:bg-[#111] border border-slate-200 dark:border-neutral-800 space-y-6"
-            >
-              {/* Top Payment Success Indicator */}
-              <div className="text-center space-y-2">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                  <CheckCircle size={30} />
-                </div>
-                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                  Payment Successful!
-                </h3>
-              </div>
-
-              {/* Heartfelt Thank You Card for the Donor */}
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 via-amber-50/40 to-slate-50 p-5 border border-emerald-200/80 dark:from-emerald-950/40 dark:via-neutral-900 dark:to-neutral-900 dark:border-emerald-800/40 text-center space-y-2.5">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 text-[11px] font-bold">
-                  <Heart size={13} className="fill-rose-500 text-rose-500" />
-                  Thank You For Your Kindness &amp; Donation
-                </div>
-
-                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Thank You, {completedDonationData?.donorName || "Generous Donor"}!
-                </h4>
-
-                <p className="text-xs text-slate-600 dark:text-neutral-300 max-w-md mx-auto leading-relaxed">
-                  Your generous contribution of{" "}
-                  <span className="font-bold text-[#798321] dark:text-[#FFC107]">
-                    ₹{completedDonationData?.amount?.toLocaleString()}
-                  </span>{" "}
-                  sponsoring{" "}
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {completedDonationData?.personCount} member(s)
-                  </span>{" "}
-                  has been received with deep gratitude. Your selfless support brings real nutrition, hope, and smiles to those who need it most.
-                </p>
-
-                <p className="text-[11px] text-slate-400 dark:text-neutral-500 italic">
-                  A digital confirmation has been logged under our public donor registry.
-                </p>
-              </div>
-
-              {/* 3 Important Fulfillment Conditions */}
-              <div className="rounded-2xl bg-amber-50/80 p-4 sm:p-5 border border-amber-200/80 dark:bg-[#18150c] dark:border-amber-900/50 space-y-4">
-                <div className="flex items-center gap-2 border-b border-amber-200/60 dark:border-amber-900/40 pb-2">
-                  <AlertCircle size={16} className="text-amber-700 dark:text-amber-400 shrink-0" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                    Important Fulfillment Conditions
-                  </span>
-                </div>
-
-                <div className="space-y-3.5 text-xs text-slate-700 dark:text-neutral-300">
-                  <div className="flex items-start gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200/70 text-amber-900 dark:bg-amber-900/50 dark:text-amber-300 font-bold text-[10px] mt-0.5">
-                      1
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <PhoneOff size={13} className="text-rose-500" />
-                        Do Not Directly Call Field Coordinators
-                      </p>
-                      <p className="text-[11px] text-slate-600 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                        Our volunteers are actively on the ground executing distributions. Please refrain from calling during live distribution hours as it disrupts on-site logistics.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200/70 text-amber-900 dark:bg-amber-900/50 dark:text-amber-300 font-bold text-[10px] mt-0.5">
-                      2
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <Clock size={13} className="text-amber-600 dark:text-amber-400" />
-                        Photos &amp; Video Delivery Timeline
-                      </p>
-                      <p className="text-[11px] text-slate-600 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                        Distribution proofs and requested celebration videos are compiled following the event and delivered to your registered contact within <strong>24 to 48 hours</strong>.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200/70 text-amber-900 dark:bg-amber-900/50 dark:text-amber-300 font-bold text-[10px] mt-0.5">
-                      3
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <FileCheck size={13} className="text-emerald-600 dark:text-emerald-400" />
-                        Tracking &amp; Proof Verification
-                      </p>
-                      <p className="text-[11px] text-slate-600 dark:text-neutral-400 mt-0.5 leading-relaxed">
-                        Every sponsorship is accounted for with 100% item-level transparency. Your record is permanently logged in our foundation registry once verified.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  onClick={() => setShowSuccessPopup(false)}
-                  className="flex-1 rounded-2xl bg-gradient-to-r from-[#798321] to-[#FFC107] py-3 text-xs font-bold text-black shadow-md transition-transform hover:opacity-95 active:scale-95"
-                >
-                  I Understand &amp; Agree
-                </button>
-                <Link
-                  href="/foundation/causes"
-                  onClick={() => setShowSuccessPopup(false)}
-                  className="flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 py-3 px-5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-white transition"
-                >
-                  Return to Causes
-                </Link>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Concise Floating Popup / Toast */}
-      <AnimatePresence>
-        {popupMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-black shadow-2xl border border-slate-700 dark:border-neutral-200 text-xs font-semibold max-w-[92vw] sm:max-w-md"
-          >
-            <div className="h-5 w-5 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
-              <AlertCircle size={13} />
-            </div>
-            <span className="flex-1 leading-snug">{popupMessage}</span>
-            <button
-              type="button"
-              onClick={() => setPopupMessage("")}
-              className="p-1 rounded-lg hover:bg-white/10 dark:hover:bg-black/10 text-slate-400 hover:text-white dark:hover:text-black shrink-0 transition"
-            >
-              <X size={13} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Sample Packaging Photo Preview Modal */}
       <AnimatePresence>
@@ -1545,7 +924,7 @@ function DonateContent() {
               </div>
 
               <div className="rounded-xl bg-amber-500/10 p-3 text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
-                <strong>How it works:</strong> When you upload a photo (e.g. birthday person, tribute, or family portrait), our team prints high-gloss custom sticker labels and affixes one to every sponsored food or gift package distributed to beneficiaries.
+                <strong>How it works:</strong> When you share a photo with our team (e.g. birthday person, tribute, or family portrait), our team prints high-gloss custom sticker labels and affixes one to every sponsored food or gift package distributed to beneficiaries.
               </div>
 
               <button

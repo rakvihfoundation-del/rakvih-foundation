@@ -33,6 +33,7 @@ import {
   Maximize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import DonationProofReview from "@/components/foundation/DonationProofReview";
 import AdminHeader from "@/components/foundation/adminheader";
 import { getDonations, deleteDonation, updateDonationStatus } from "./actions";
 
@@ -252,6 +253,9 @@ export default function AdminDonationsPage() {
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
               Track donor sponsorships, custom packaging photos, print labels, and celebration video requests.
             </p>
+            <a href="#general-fund-proofs" className="mt-2 inline-block text-sm font-semibold text-[#FFC107] hover:underline">
+              Review General Fund payment proofs
+            </a>
           </div>
 
           <div className="flex items-center gap-3">
@@ -534,6 +538,7 @@ export default function AdminDonationsPage() {
           )}
         </div>
 
+        <DonationProofReview generalFundOnly />
       </main>
 
       {/* ── OPERATIONAL PACKAGING & FULFILLMENT MODAL (DETAILED & NEATLY ALIGNED) ── */}
