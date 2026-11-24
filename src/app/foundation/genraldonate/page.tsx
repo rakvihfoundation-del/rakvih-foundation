@@ -45,6 +45,7 @@ export default function GeneralDonatePage() {
   const [donorMessage, setDonorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentPanel, setPaymentPanel] = useState<"payment" | "proof">("payment");
   const [reference, setReference] = useState("");
   const [proof, setProof] = useState<File | null>(null);
   const [proofError, setProofError] = useState("");
@@ -216,6 +217,7 @@ export default function GeneralDonatePage() {
                 <form onSubmit={(event) => {
                     event.preventDefault();
                     setSuccess(false);
+                    setPaymentPanel("payment");
                     setProofError("");
                     dialogRef.current?.showModal();
                   }} className="space-y-5">
@@ -362,7 +364,7 @@ export default function GeneralDonatePage() {
         ref={dialogRef}
         aria-labelledby="donation-payment-title"
         onCancel={(event) => { if (submitting) event.preventDefault(); }}
-        className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl backdrop:bg-black/60 sm:p-6 dark:border-neutral-800 dark:bg-[#141414] dark:text-white"
+        className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl backdrop:bg-black/60 sm:p-6 dark:border-neutral-800 dark:bg-[#141414] dark:text-white"
       >
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 id="donation-payment-title" className="text-lg font-bold">
@@ -376,28 +378,74 @@ export default function GeneralDonatePage() {
           <p role="status" className="text-sm">Thank you. Your payment proof is pending verification by the Foundation.</p>
         ) : (
           <>
-            <p className="mb-4 text-sm text-slate-600 dark:text-neutral-300">Pay using your bank or UPI app, then submit your transaction reference and screenshot.</p>
-            <DonationPaymentDetails />
-            <a
-              href={`upi://pay?${new URLSearchParams({ pa: donationUpiId, pn: "RAKVIH FOUNDATION", am: Number(amount).toFixed(2), cu: "INR" })}`}
-              className="mt-3 inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-neutral-700"
-            >
-              Open UPI app
-            </a>
-            <form onSubmit={submitProof} className="mt-4 space-y-4">
-              <label className="block text-sm font-semibold">
-                Transaction reference / UTR
-                <input required value={reference} onChange={(event) => setReference(event.target.value)} minLength={4} maxLength={80} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-neutral-700" />
-              </label>
-              <label className="block text-sm font-semibold">
-                Payment screenshot (PNG or JPEG, up to 4 MB)
-                <input required type="file" accept="image/png,image/jpeg" onChange={(event) => setProof(event.target.files?.[0] ?? null)} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-neutral-700" />
-              </label>
-              {proofError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{proofError}</p>}
-              <button type="submit" disabled={submitting} className="w-full rounded-xl bg-[#FFC107] px-4 py-3 text-sm font-bold text-black disabled:opacity-60">
-                {submitting ? "Submitting…" : "Submit payment proof"}
-              </button>
-            </form>
+            <div className="mb-4 grid grid-cols-2 gap-2 md:hidden" aria-label="Payment steps">
+              {(["payment", "proof"] as const).map((panel) => (
+                <button
+                  key={panel}
+                  type="button"
+                  aria-pressed={paymentPanel === panel}
+                  onClick={() => setPaymentPanel(panel)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold ${paymentPanel === panel
+                    ? "border-[#FFC107] bg-[#FFC107]/15"
+                    : "border-slate-200 dark:border-neutral-700"}`}
+                >
+                  {panel === "payment" ? "Payment details" : "Upload proof"}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 md:gap-6">
+              <div className={paymentPanel === "payment" ? "min-w-0" : "hidden min-w-0 md:block"}>
+                <DonationPaymentDetails />
+                <figure className="mt-3 flex flex-col items-center gap-2 text-center">
+                  <Image
+                    src="/images/foundation-kotak-upi-qr.png"
+                    alt="Kotak UPI payment QR code for RAKVIH Foundation"
+                    width={508}
+                    height={508}
+                    unoptimized
+                    className="h-auto w-32 max-w-full rounded-lg md:w-40"
+                  />
+                  <figcaption className="text-sm text-slate-600 dark:text-neutral-300">
+                    Scan with your UPI app and enter ₹{Number(amount).toLocaleString("en-IN")}.
+                  </figcaption>
+                </figure>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <a
+                    href={`upi://pay?${new URLSearchParams({ pa: donationUpiId, pn: "RAKVIH FOUNDATION", am: Number(amount).toFixed(2), cu: "INR" })}`}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-neutral-700"
+                  >
+                    Open UPI app
+                  </a>
+                  <button type="button" onClick={() => setPaymentPanel("proof")} className="rounded-lg bg-[#FFC107] px-3 py-2 text-sm font-bold text-black md:hidden">
+                    Continue to proof
+                  </button>
+                </div>
+              </div>
+
+              <section
+                aria-labelledby="donation-proof-title"
+                className={`min-w-0 rounded-2xl border border-slate-200 p-4 dark:border-neutral-800 sm:p-5 ${paymentPanel === "proof" ? "" : "hidden md:block"}`}
+              >
+                <h3 id="donation-proof-title" className="text-base font-bold">Upload payment proof</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-neutral-300">
+                  After paying, enter your transaction reference and attach your screenshot.
+                </p>
+                <form onSubmit={submitProof} className="mt-4 space-y-4">
+                  <label className="block text-sm font-semibold">
+                    Transaction reference / UTR
+                    <input required value={reference} onChange={(event) => setReference(event.target.value)} minLength={4} maxLength={80} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-neutral-700" />
+                  </label>
+                  <label className="block text-sm font-semibold">
+                    Payment screenshot (PNG or JPEG, up to 4 MB)
+                    <input required type="file" accept="image/png,image/jpeg" onChange={(event) => setProof(event.target.files?.[0] ?? null)} disabled={submitting} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-neutral-700" />
+                  </label>
+                  {proofError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{proofError}</p>}
+                  <button type="submit" disabled={submitting} className="w-full rounded-xl bg-[#FFC107] px-4 py-3 text-sm font-bold text-black disabled:opacity-60">
+                    {submitting ? "Submitting…" : "Submit payment proof"}
+                  </button>
+                </form>
+              </section>
+            </div>
           </>
         )}
       </dialog>
