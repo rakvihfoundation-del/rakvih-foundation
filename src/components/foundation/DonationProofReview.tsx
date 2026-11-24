@@ -33,7 +33,15 @@ type Donation = {
   created_at: string;
 };
 
-export default function DonationProofReview({ generalFundOnly = false }: { generalFundOnly?: boolean }) {
+type ApprovedDonationTotals = { count: number; amount: number };
+
+export default function DonationProofReview({
+  generalFundOnly = false,
+  onApprovedTotalsChange,
+}: {
+  generalFundOnly?: boolean;
+  onApprovedTotalsChange?: (totals: ApprovedDonationTotals) => void;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [donations, setDonations] = useState<Donation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +72,16 @@ export default function DonationProofReview({ generalFundOnly = false }: { gener
     void loadDonations();
     return () => { cancelled = true; };
   }, [generalFundOnly, supabase]);
+
+  useEffect(() => {
+    if (!onApprovedTotalsChange) return;
+
+    const approvedDonations = donations.filter((donation) => donation.status === "approved");
+    onApprovedTotalsChange({
+      count: approvedDonations.length,
+      amount: approvedDonations.reduce((sum, donation) => sum + Number(donation.amount), 0),
+    });
+  }, [donations, onApprovedTotalsChange]);
 
   const updateStatus = async (donation: Donation, newStatus: "approved" | "rejected") => {
     setActionLoading(donation.id);

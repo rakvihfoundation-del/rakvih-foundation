@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 // Adjust these import paths if your action files live somewhere else.
-import { getDonations } from "./donations/actions";
+import { getApprovedGeneralFundTotals, getDonations } from "./donations/actions";
 import { getContactInquiries } from "./contact/actions";
 import { getGalleryImages } from "./gallery/actions";
 import { getCsrProposals } from "./csr/actions";
@@ -39,6 +39,7 @@ interface SectionState {
 
 export default function AdminDashboardPage() {
   const [donations, setDonations] = useState<any[]>([]);
+  const [generalFundTotals, setGeneralFundTotals] = useState({ count: 0, amount: 0 });
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
@@ -75,8 +76,10 @@ export default function AdminDashboardPage() {
   async function loadAll() {
     (async () => {
       try {
-        const data = await getDonations();
-        setDonations(data || []);
+        await Promise.all([
+          getDonations().then(setDonations),
+          getApprovedGeneralFundTotals().then(setGeneralFundTotals),
+        ]);
       } catch (err: any) {
         setSection("donations", { error: err.message || "Failed to load donations." });
       } finally {
@@ -142,8 +145,9 @@ export default function AdminDashboardPage() {
 
   const anyLoading = Object.values(status).some((s) => s.loading);
 
-  const totalDonationAmount = donations.reduce((sum, d) => sum + Number(d.amount || 0), 0);
-  const donatedCount = donations.filter((d) => (d.is_donated ?? true) === true).length;
+  const totalDonationAmount = donations.reduce((sum, d) => sum + Number(d.amount || 0), 0) + generalFundTotals.amount;
+  const totalDonationCount = donations.length + generalFundTotals.count;
+  const donatedCount = donations.filter((d) => (d.is_donated ?? true) === true).length + generalFundTotals.count;
 
   const pendingInquiries = inquiries.filter((i) => (i.is_resolved ?? false) === false).length;
 
@@ -173,7 +177,7 @@ export default function AdminDashboardPage() {
       href: "/adminfoundations/donations",
       label: "Donations",
       icon: Heart,
-      stat: `${donations.length} records`,
+      stat: `${totalDonationCount} records`,
     },
     {
       href: "/adminfoundations/contact",
@@ -268,7 +272,7 @@ export default function AdminDashboardPage() {
               <ArrowUpRight size={14} className="text-slate-400 group-hover:text-[#798321] dark:group-hover:text-[#FFC107] transition-colors" />
             </div>
             <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-              ₹{totalDonationAmount.toLocaleString()}
+              ₹{totalDonationAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
             </span>
           </Link>
 
@@ -286,7 +290,7 @@ export default function AdminDashboardPage() {
               <ArrowUpRight size={14} className="text-slate-400 group-hover:text-[#798321] dark:group-hover:text-[#FFC107] transition-colors" />
             </div>
             <span className="text-lg font-extrabold text-[#798321] dark:text-[#FFC107]">
-              {donatedCount} <span className="text-xs font-semibold text-slate-400">/ {donations.length}</span>
+              {donatedCount} <span className="text-xs font-semibold text-slate-400">/ {totalDonationCount}</span>
             </span>
           </Link>
 

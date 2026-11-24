@@ -21,6 +21,24 @@ export async function getDonations() {
   return data;
 }
 
+export async function getApprovedGeneralFundTotals() {
+  const { data, error } = await supabaseAdmin
+    .from("foundation_donations")
+    .select("amount")
+    .eq("status", "approved")
+    .like("payment_proof_url", "general-fund/%");
+
+  if (error) {
+    console.error("Error fetching approved General Fund totals:", error.message);
+    throw new Error("Failed to load approved General Fund totals.");
+  }
+
+  return {
+    count: data.length,
+    amount: data.reduce((sum, donation) => sum + Number(donation.amount), 0),
+  };
+}
+
 export async function deleteDonation(id: number) {
   const { error } = await supabaseAdmin
     .from("donations")

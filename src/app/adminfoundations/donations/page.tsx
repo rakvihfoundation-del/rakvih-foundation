@@ -46,6 +46,7 @@ const display = Fraunces({
 
 export default function AdminDonationsPage() {
   const [donations, setDonations] = useState<any[]>([]);
+  const [generalFundTotals, setGeneralFundTotals] = useState({ count: 0, amount: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDedication, setFilterDedication] = useState("All");
@@ -236,7 +237,8 @@ export default function AdminDonationsPage() {
     return matchesSearch && matchesDedication && matchesStatus && matchesDate;
   });
 
-  const totalAmount = filteredDonations.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalDonations = donations.length + generalFundTotals.count;
+  const totalAmount = donations.reduce((sum, item) => sum + Number(item.amount || 0), 0) + generalFundTotals.amount;
 
   return (
     <div className={`min-h-screen bg-black ${display.variable}`} style={{ fontFamily: "var(--font-display)" }}>
@@ -261,12 +263,12 @@ export default function AdminDonationsPage() {
           <div className="flex items-center gap-3">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 shadow-sm">
               <span className="block text-[10px] font-bold uppercase text-slate-400">Total Donated</span>
-              <span className="text-lg font-extrabold text-[#FFC107]">{filteredDonations.length}</span>
+              <span className="text-lg font-extrabold text-[#FFC107]">{totalDonations}</span>
             </div>
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 shadow-sm">
               <span className="block text-[10px] font-bold uppercase text-slate-400">Total Revenue</span>
               <span className="text-lg font-extrabold text-emerald-400 flex items-center">
-                <IndianRupee size={16} className="inline" /> {totalAmount.toLocaleString()}
+                <IndianRupee size={16} className="inline" /> {totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -512,22 +514,25 @@ export default function AdminDonationsPage() {
                           {donation.donation_date || (donation.created_at ? donation.created_at.split("T")[0] : "Recent")}
                         </td>
 
-                        <td className="py-4 px-6 text-right space-x-2">
-                          <button
-                            onClick={() => setSelectedDonation(donation)}
-                            title="Open Operational Fulfillment Sheet"
-                            className="inline-flex items-center gap-1 rounded-xl bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:bg-[#FFC107] hover:text-black transition"
-                          >
-                            <Eye size={13} /> View Sheet
-                          </button>
-                          <button
-                            onClick={() => handleDelete(donation.id)}
-                            disabled={isPending}
-                            title="Delete Record"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-red-950/40 text-red-400 hover:bg-red-600 hover:text-white transition disabled:opacity-50"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                        <td className="py-4 px-6 text-right">
+                          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <button
+                              onClick={() => setSelectedDonation(donation)}
+                              title="Open Operational Fulfillment Sheet"
+                              className="inline-flex items-center gap-1 rounded-xl bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:bg-[#FFC107] hover:text-black transition"
+                            >
+                              <Eye size={13} /> View
+                            </button>
+                            <button
+                              onClick={() => handleDelete(donation.id)}
+                              disabled={isPending}
+                              title="Delete Record"
+                              aria-label="Delete record"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-red-950/40 text-red-400 hover:bg-red-600 hover:text-white transition disabled:opacity-50"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -538,7 +543,7 @@ export default function AdminDonationsPage() {
           )}
         </div>
 
-        <DonationProofReview generalFundOnly />
+        <DonationProofReview generalFundOnly onApprovedTotalsChange={setGeneralFundTotals} />
       </main>
 
       {/* ── OPERATIONAL PACKAGING & FULFILLMENT MODAL (DETAILED & NEATLY ALIGNED) ── */}
